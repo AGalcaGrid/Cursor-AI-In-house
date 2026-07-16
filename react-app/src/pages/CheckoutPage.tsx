@@ -279,7 +279,7 @@ export const CheckoutPage: React.FC = () => {
                       <span className="text-gray-600">
                         {item.product.name} × {item.quantity}
                       </span>
-                      <span className="font-medium">${item.total_price.toFixed(2)}</span>
+                      <span className="font-medium">${Number(item.total_price).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -288,12 +288,12 @@ export const CheckoutPage: React.FC = () => {
                 <div className="space-y-2 mb-4 pb-4 border-b">
                   <div className="flex justify-between text-gray-600">
                     <span>Subtotal</span>
-                    <span>${cart.subtotal.toFixed(2)}</span>
+                    <span>${Number(cart.subtotal).toFixed(2)}</span>
                   </div>
                   {cart.discount_amount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount</span>
-                      <span>-${cart.discount_amount.toFixed(2)}</span>
+                      <span>-${Number(cart.discount_amount).toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-gray-600">

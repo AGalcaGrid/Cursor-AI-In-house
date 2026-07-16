@@ -117,7 +117,7 @@ export const CartPage: React.FC = () => {
                       <p className="text-sm text-gray-500 dark:text-gray-400">{item.product.brand}</p>
                     )}
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      ${item.price.toFixed(2)} each
+                      ${Number(item.price).toFixed(2)} each
                     </p>
                   </div>
 
@@ -143,7 +143,7 @@ export const CartPage: React.FC = () => {
                   {/* Price */}
                   <div className="text-right">
                     <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      ${item.total_price.toFixed(2)}
+                      ${Number(item.total_price).toFixed(2)}
                     </p>
                   </div>
 
@@ -213,12 +213,12 @@ export const CartPage: React.FC = () => {
               <div className="space-y-2 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>Subtotal ({cart.total_items} items)</span>
-                  <span>${cart.subtotal.toFixed(2)}</span>
+                  <span>${Number(cart.subtotal).toFixed(2)}</span>
                 </div>
                 {cart.discount_amount > 0 && (
                   <div className="flex justify-between text-green-600 dark:text-green-400">
                     <span>Discount</span>
-                    <span>-${cart.discount_amount.toFixed(2)}</span>
+                    <span>-${Number(cart.discount_amount).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
@@ -230,7 +230,7 @@ export const CartPage: React.FC = () => {
               {/* Total */}
               <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white mb-6">
                 <span>Total</span>
-                <span>${cart.total.toFixed(2)}</span>
+                <span>${Number(cart.total).toFixed(2)}</span>
               </div>
 
               {/* Checkout Button */}

@@ -101,7 +101,7 @@ export const OrdersPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Total</p>
-                      <p className="font-medium text-gray-900">${order.total.toFixed(2)}</p>
+                      <p className="font-medium text-gray-900">${Number(order.total).toFixed(2)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Items</p>

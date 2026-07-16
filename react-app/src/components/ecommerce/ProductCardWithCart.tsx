@@ -91,10 +91,10 @@ export const ProductCardWithCart: React.FC<ProductCardWithCartProps> = ({ produc
 
         {/* Price */}
         <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-2xl font-bold text-gray-900 dark:text-white">${product.price.toFixed(2)}</span>
+          <span className="text-2xl font-bold text-gray-900 dark:text-white">${Number(product.price).toFixed(2)}</span>
           {product.compare_at_price && (
             <span className="text-lg text-gray-400 dark:text-gray-500 line-through">
-              ${product.compare_at_price.toFixed(2)}
+              ${Number(product.compare_at_price).toFixed(2)}
             </span>
           )}
         </div>

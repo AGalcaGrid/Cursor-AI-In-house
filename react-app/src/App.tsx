@@ -335,6 +335,9 @@ function App() {
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
+    } else if (href.startsWith('/')) {
+      // Handle route navigation
+      window.location.href = href
     }
   }
 

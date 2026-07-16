@@ -457,20 +457,21 @@ function App() {
       {/* Main Content - with padding for sidebar and top bar */}
       <div className="md:ml-64 pt-16 pb-12 px-4">
         <div className="max-w-7xl mx-auto">
-          {/* Home Section */}
-          <section id="home" className="mb-20 pt-4">
-            <header className="text-center mb-12">
-              <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
-                Welcome to ShopDemo
-              </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-                Explore our collection of premium products and connect with amazing people.
-                Scroll down to see our components in action.
-              </p>
-            </header>
+          {/* Home & E-Commerce Shop Section */}
+          <section id="home" className="mb-20 pt-4 scroll-mt-20">
+            <div id="shop" className="scroll-mt-20">
+              <header className="text-center mb-12">
+                <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
+                  Welcome to ShopDemo
+                </h1>
+                <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                  Explore our collection of premium products and connect with amazing people.
+                  Scroll down to see our components in action.
+                </p>
+              </header>
 
-            {/* E-Commerce Shop Banner */}
-            <div id="shop" className="scroll-mt-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl p-8 mb-12 text-white">
+              {/* E-Commerce Shop Banner */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl p-8 mb-12 text-white">
               <div className="max-w-3xl mx-auto text-center">
                 <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full text-sm font-medium mb-4">
                   🎉 NEW FEATURE
@@ -516,6 +517,7 @@ function App() {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           </section>
 

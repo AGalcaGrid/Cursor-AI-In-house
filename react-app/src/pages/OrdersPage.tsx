@@ -51,7 +51,7 @@ export const OrdersPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">My Orders</h1>
 
@@ -62,7 +62,7 @@ export const OrdersPage: React.FC = () => {
         )}
 
         {orders.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-12 text-center">
             <Package className="mx-auto h-16 w-16 text-gray-400 mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">No orders yet</h2>
             <p className="text-gray-600 mb-6">Start shopping to see your orders here!</p>
@@ -78,7 +78,7 @@ export const OrdersPage: React.FC = () => {
             {orders.map((order) => (
               <div
                 key={order.id}
-                className="bg-white rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => navigate(`/order-confirmation/${order.order_number}`)}
               >
                 <div className="p-6">

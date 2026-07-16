@@ -54,7 +54,7 @@ export const CheckoutPage: React.FC = () => {
 
   if (!cart || cart.items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900">Your cart is empty</h2>
@@ -75,9 +75,9 @@ export const CheckoutPage: React.FC = () => {
   const total = cart.total + tax + shipping;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
+        <h1 className="text-3xl font-bold className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Checkout</h1>
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -90,7 +90,7 @@ export const CheckoutPage: React.FC = () => {
             {/* Checkout Form */}
             <div className="lg:col-span-2 space-y-6">
               {/* Shipping Information */}
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Truck className="w-5 h-5 text-blue-600" />
                   <h2 className="text-xl font-bold text-gray-900">Shipping Information</h2>
@@ -224,7 +224,7 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               {/* Payment Method */}
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <CreditCard className="w-5 h-5 text-blue-600" />
                   <h2 className="text-xl font-bold text-gray-900">Payment Method</h2>
@@ -254,7 +254,7 @@ export const CheckoutPage: React.FC = () => {
               </div>
 
               {/* Order Notes */}
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Order Notes (Optional)</h2>
                 <textarea
                   name="notes"
@@ -269,7 +269,7 @@ export const CheckoutPage: React.FC = () => {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow p-6 sticky top-4">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 sticky top-4">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
 
                 {/* Items */}

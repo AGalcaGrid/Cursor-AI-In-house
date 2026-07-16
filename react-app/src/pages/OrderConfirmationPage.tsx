@@ -38,7 +38,7 @@ export const OrderConfirmationPage: React.FC = () => {
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900">Order not found</h2>
@@ -55,10 +55,10 @@ export const OrderConfirmationPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Success Message */}
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700-lg p-8 mb-6">
           <div className="text-center">
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
               <CheckCircle className="h-10 w-10 text-green-600" />
@@ -78,7 +78,7 @@ export const OrderConfirmationPage: React.FC = () => {
         </div>
 
         {/* Order Details */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Order Details</h2>
 
           {/* Items */}
@@ -122,7 +122,7 @@ export const OrderConfirmationPage: React.FC = () => {
         </div>
 
         {/* Shipping Information */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <Truck className="w-5 h-5 text-blue-600" />
             <h2 className="text-xl font-bold text-gray-900">Shipping Address</h2>

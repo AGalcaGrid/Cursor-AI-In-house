@@ -30,7 +30,7 @@ export const ProductCardWithCart: React.FC<ProductCardWithCartProps> = ({ produc
     : 0;
 
   return (
-    <article className="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+    <article className="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700">
       {/* Discount Badge */}
       {discountPercentage > 0 && (
         <div className="absolute top-3 left-3 z-10 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
@@ -40,7 +40,7 @@ export const ProductCardWithCart: React.FC<ProductCardWithCartProps> = ({ produc
 
       {/* Stock Badge */}
       {!product.in_stock && (
-        <div className="absolute top-3 right-3 z-10 bg-gray-800 text-white px-3 py-1 rounded-full text-sm font-medium">
+        <div className="absolute top-3 right-3 z-10 bg-gray-800 dark:bg-gray-700 text-white px-3 py-1 rounded-full text-sm font-medium">
           Out of Stock
         </div>
       )}
@@ -51,7 +51,7 @@ export const ProductCardWithCart: React.FC<ProductCardWithCartProps> = ({ produc
       )}
 
       {/* Product Image */}
-      <div className="relative h-64 overflow-hidden bg-gray-100">
+      <div className="relative h-64 overflow-hidden bg-gray-100 dark:bg-gray-700">
         {product.image_url ? (
           <img
             src={product.image_url}
@@ -59,7 +59,7 @@ export const ProductCardWithCart: React.FC<ProductCardWithCartProps> = ({ produc
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
+          <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
             <ShoppingCart className="w-16 h-16" />
           </div>
         )}
@@ -69,31 +69,31 @@ export const ProductCardWithCart: React.FC<ProductCardWithCartProps> = ({ produc
       <div className="p-5">
         {/* Brand */}
         {product.brand && (
-          <p className="text-sm text-gray-500 font-medium mb-1">{product.brand}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mb-1">{product.brand}</p>
         )}
 
         {/* Product Name */}
-        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem]">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-2 min-h-[3.5rem]">
           {product.name}
         </h3>
 
         {/* Category */}
         {product.category && (
-          <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-md mb-3">
+          <span className="inline-block px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium rounded-md mb-3">
             {product.category}
           </span>
         )}
 
         {/* Description */}
         {product.description && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{product.description}</p>
         )}
 
         {/* Price */}
         <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-2xl font-bold text-gray-900">${product.price.toFixed(2)}</span>
+          <span className="text-2xl font-bold text-gray-900 dark:text-white">${product.price.toFixed(2)}</span>
           {product.compare_at_price && (
-            <span className="text-lg text-gray-400 line-through">
+            <span className="text-lg text-gray-400 dark:text-gray-500 line-through">
               ${product.compare_at_price.toFixed(2)}
             </span>
           )}
@@ -110,7 +110,7 @@ export const ProductCardWithCart: React.FC<ProductCardWithCartProps> = ({ produc
               added
                 ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
                 : !product.in_stock
-                ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500 dark:text-gray-400'
                 : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25 focus:ring-blue-500'
             }`}
           aria-label={`Add ${product.name} to cart`}
@@ -139,7 +139,7 @@ export const ProductCardWithCart: React.FC<ProductCardWithCartProps> = ({ produc
 
         {/* Stock Info */}
         {product.in_stock && product.stock_quantity <= 10 && (
-          <p className="mt-2 text-xs text-orange-600 text-center">
+          <p className="mt-2 text-xs text-orange-600 dark:text-orange-400 text-center">
             Only {product.stock_quantity} left in stock!
           </p>
         )}

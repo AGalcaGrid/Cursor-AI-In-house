@@ -470,7 +470,7 @@ function App() {
             </header>
 
             {/* E-Commerce Shop Banner */}
-            <div id="shop" className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl p-8 mb-12 text-white">
+            <div id="shop" className="scroll-mt-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl p-8 mb-12 text-white">
               <div className="max-w-3xl mx-auto text-center">
                 <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full text-sm font-medium mb-4">
                   🎉 NEW FEATURE

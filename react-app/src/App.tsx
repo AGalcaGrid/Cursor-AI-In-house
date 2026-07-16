@@ -14,7 +14,6 @@ import type { NavItem } from './types/navigation'
 
 const navItems: NavItem[] = [
   { label: 'Home', href: '#home' },
-  { label: 'E-Commerce Shop', href: '/shop' },
   { label: 'Products', href: '#products' },
   { label: 'Profiles', href: '#profiles' },
   { label: 'Task Flow', href: '#taskflow' },

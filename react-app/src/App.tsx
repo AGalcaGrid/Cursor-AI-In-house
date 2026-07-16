@@ -14,6 +14,7 @@ import type { NavItem } from './types/navigation'
 
 const navItems: NavItem[] = [
   { label: 'Home', href: '#home' },
+  { label: 'E-Commerce Shop', href: '#shop' },
   { label: 'Products', href: '#products' },
   { label: 'Profiles', href: '#profiles' },
   { label: 'Task Flow', href: '#taskflow' },
@@ -469,7 +470,7 @@ function App() {
             </header>
 
             {/* E-Commerce Shop Banner */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl p-8 mb-12 text-white">
+            <div id="shop" className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-2xl p-8 mb-12 text-white">
               <div className="max-w-3xl mx-auto text-center">
                 <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full text-sm font-medium mb-4">
                   🎉 NEW FEATURE

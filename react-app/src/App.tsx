@@ -8,6 +8,7 @@ import { AnalyticsDashboard } from './components/analytics'
 import { TeamDashboardWithContext } from './components/team-dashboard'
 import { SocialFeed } from './components/social-feed'
 import { useAuth } from './contexts/AuthContext'
+import { useCart } from './contexts/CartContext'
 import type { UserProfile as UserProfileType } from './types/user'
 import type { Product } from './types/product'
 import type { NavItem } from './types/navigation'
@@ -256,8 +257,8 @@ const sampleProducts: Product[] = [
 
 function App() {
   const { isAuthenticated, logout: authLogout } = useAuth()
+  const { cart, addToCart } = useCart()
   const [users, setUsers] = useState<UserProfileType[]>(sampleUsers)
-  const [cartCount, setCartCount] = useState(0)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [showDashboard, setShowDashboard] = useState(false)
   const [showSupportTickets, setShowSupportTickets] = useState(false)
@@ -305,9 +306,16 @@ function App() {
     alert('Opening profile editor')
   }
 
-  const handleAddToCart = (product: Product) => {
-    setCartCount((prev) => prev + 1)
-    alert(`Added "${product.title}" to cart!`)
+  const handleAddToCart = async (product: Product) => {
+    try {
+      // Map the demo product to e-commerce product format
+      const productId = parseInt(product.id) + 100; // Offset to avoid ID conflicts
+      await addToCart(productId, 1);
+      alert(`✅ Added "${product.title}" to cart!\n\n🛍️ Visit the E-Commerce Shop to view your cart and checkout.`);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert(`❌ Could not add to cart. Please visit the E-Commerce Shop to browse and purchase products.`);
+    }
   }
 
   const handleSearch = (query: string) => {
@@ -446,7 +454,7 @@ function App() {
         onSearch={handleSearch}
         title="Component Showcase"
         user={isLoggedIn ? currentUser : null}
-        cartCount={cartCount}
+        cartCount={cart?.total_items || 0}
         onProfile={handleProfile}
         onSettings={handleSettings}
         onLogout={handleLogout}
@@ -522,13 +530,19 @@ function App() {
           </section>
 
           {/* Product Cards Section */}
-          <section id="products" className="mb-20 pt-4">
+          <section id="products" className="mb-20 pt-4 scroll-mt-20">
             <header className="text-center mb-12">
+              <div className="inline-block px-4 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-sm font-semibold rounded-full mb-4">
+                UI COMPONENT DEMO
+              </div>
               <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
                 Product Card Component
               </h2>
-              <p className="text-gray-600 dark:text-gray-300">
-                E-commerce product cards with ratings, prices, and hover effects
+              <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                Reusable product card component with ratings, prices, and hover effects.
+                <span className="block mt-3 text-blue-600 dark:text-blue-400 font-medium">
+                  🛍️ Click "Add to Cart" to try it out, then visit the <a href="#shop" className="underline hover:text-blue-700 dark:hover:text-blue-300">E-Commerce Shop</a> for the full shopping experience!
+                </span>
               </p>
             </header>
 

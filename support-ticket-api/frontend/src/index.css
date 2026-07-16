@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors;
+}
+
+/* Focus visible styles for better keyboard navigation */
+*:focus-visible {
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900;
+}
+
+/* Smooth color transitions for dark mode */
+* {
+  @apply transition-colors duration-200;
+}

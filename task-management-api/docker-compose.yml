@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # Redis - Cache and Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: task-api-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - task-network
+
+  # Flask API
+  api:
+    build: .
+    container_name: task-api-flask
+    ports:
+      - "5003:5003"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - JWT_SECRET_KEY=jwt-secret-key-change-in-production
+      - DATABASE_URL=sqlite:///instance/dev.db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MAIL_SERVER=smtp.gmail.com
+      - MAIL_PORT=587
+      - MAIL_USE_TLS=true
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+    volumes:
+      - ./:/app
+      - instance_data:/app/instance
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: python run.py
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/api/auth/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - task-network
+
+  # Celery Worker
+  celery-worker:
+    build: .
+    container_name: task-api-celery-worker
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - DATABASE_URL=sqlite:///instance/dev.db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MAIL_SERVER=smtp.gmail.com
+      - MAIL_PORT=587
+      - MAIL_USE_TLS=true
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+    volumes:
+      - ./:/app
+      - instance_data:/app/instance
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    command: celery -A celery_worker.celery worker --loglevel=info
+    networks:
+      - task-network
+
+  # Celery Beat (Scheduler)
+  celery-beat:
+    build: .
+    container_name: task-api-celery-beat
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - DATABASE_URL=sqlite:///instance/dev.db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./:/app
+      - instance_data:/app/instance
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    command: celery -A celery_worker.celery beat --loglevel=info
+    networks:
+      - task-network
+
+volumes:
+  redis_data:
+    driver: local
+  instance_data:
+    driver: local
+
+networks:
+  task-network:
+    driver: bridge

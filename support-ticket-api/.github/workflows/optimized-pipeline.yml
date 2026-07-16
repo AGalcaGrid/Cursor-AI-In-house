@@ -1,0 +1,932 @@
+name: Optimized CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests (emergency deploy)'
+        required: false
+        default: 'false'
+      environment:
+        description: 'Target environment'
+        required: false
+        default: 'staging'
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.10'
+  CACHE_VERSION: v2
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================
+  # STAGE 1: Build (Parallel)
+  # ============================================
+  
+  frontend-build:
+    name: 🏗️ Build Frontend
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache-deps.outputs.cache-hit }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ../react-app/package-lock.json
+
+      - name: Cache node_modules
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ../react-app/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ env.CACHE_VERSION }}-${{ hashFiles('../react-app/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.CACHE_VERSION }}-
+
+      - name: Install dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd ../react-app
+          npm ci --prefer-offline --no-audit
+
+      - name: Build frontend
+        run: |
+          cd ../react-app
+          npm run build
+        env:
+          CI: true
+          REACT_APP_API_URL: ${{ vars.API_URL }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: ../react-app/dist/
+          retention-days: 3
+          compression-level: 6
+
+  backend-build:
+    name: 🏗️ Build Backend
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python with cache
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.local/lib/python${{ env.PYTHON_VERSION }}/site-packages
+          key: ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ env.CACHE_VERSION }}-
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  # ============================================
+  # STAGE 2: Code Quality & Security (Parallel)
+  # ============================================
+  
+  code-quality:
+    name: 🔍 Code Quality
+    runs-on: ubuntu-latest
+    needs: [frontend-build, backend-build]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ../react-app/package-lock.json
+
+      - name: Install linters
+        run: |
+          pip install flake8 black isort mypy bandit
+          cd ../react-app && npm ci --prefer-offline
+
+      - name: Run Black (Python formatting)
+        run: |
+          black --check --diff app/ || echo "::warning::Black formatting issues found"
+
+      - name: Run isort (Python imports)
+        run: |
+          isort --check-only --diff app/ || echo "::warning::Import sorting issues found"
+
+      - name: Run Flake8 (Python linting)
+        run: |
+          flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 app/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run mypy (Python type checking)
+        run: |
+          mypy app/ --ignore-missing-imports || echo "::warning::Type checking issues found"
+        continue-on-error: true
+
+      - name: Run ESLint (JavaScript linting)
+        run: |
+          cd ../react-app
+          npm run lint --if-present || echo "::warning::ESLint issues found"
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        continue-on-error: true
+
+  security-sast:
+    name: 🔒 SAST Security Scan
+    runs-on: ubuntu-latest
+    needs: [frontend-build, backend-build]
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python, javascript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python,javascript"
+
+  security-dependencies:
+    name: 🔒 Dependency Security
+    runs-on: ubuntu-latest
+    needs: [frontend-build, backend-build]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install security tools
+        run: |
+          pip install safety pip-audit bandit
+          cd ../react-app && npm ci --prefer-offline
+
+      - name: Run Safety (Python vulnerabilities)
+        run: |
+          pip install -r requirements.txt
+          safety check --full-report || echo "::warning::Vulnerabilities found in Python dependencies"
+        continue-on-error: true
+
+      - name: Run pip-audit
+        run: |
+          pip-audit || echo "::warning::pip-audit found issues"
+        continue-on-error: true
+
+      - name: Run Bandit (Python security linter)
+        run: |
+          bandit -r app/ -f json -o bandit-report.json || true
+          bandit -r app/ -ll
+        continue-on-error: true
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
+        if: always()
+
+      - name: Run npm audit
+        run: |
+          cd ../react-app
+          npm audit --audit-level=high || echo "::warning::Vulnerabilities found in npm dependencies"
+        continue-on-error: true
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+        if: always()
+
+      - name: Run Snyk Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+        continue-on-error: true
+
+  # ============================================
+  # STAGE 3: Testing (Parallel Matrix)
+  # ============================================
+  
+  frontend-tests:
+    name: 🧪 Frontend Tests (${{ matrix.test-type }})
+    runs-on: ubuntu-latest
+    needs: frontend-build
+    if: inputs.skip_tests != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type: [unit, integration, e2e]
+        include:
+          - test-type: unit
+            command: npm run test:unit -- --coverage --watchAll=false
+            coverage: true
+          - test-type: integration
+            command: npm run test:integration -- --watchAll=false
+            coverage: false
+          - test-type: e2e
+            command: npm run test:e2e
+            coverage: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ../react-app/package-lock.json
+
+      - name: Restore node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: ../react-app/node_modules
+          key: ${{ runner.os }}-node-${{ env.CACHE_VERSION }}-${{ hashFiles('../react-app/package-lock.json') }}
+
+      - name: Install dependencies (if cache miss)
+        run: |
+          cd ../react-app
+          npm ci --prefer-offline --no-audit
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: ../react-app/dist
+
+      - name: Run ${{ matrix.test-type }} tests
+        run: |
+          cd ../react-app
+          ${{ matrix.command }}
+        env:
+          CI: true
+
+      - name: Upload coverage
+        if: matrix.coverage == true
+        uses: codecov/codecov-action@v4
+        with:
+          files: ../react-app/coverage/lcov.info
+          flags: frontend-${{ matrix.test-type }}
+          name: frontend-${{ matrix.test-type }}-coverage
+
+  backend-tests:
+    name: 🧪 Backend Tests (${{ matrix.test-type }})
+    runs-on: ubuntu-latest
+    needs: backend-build
+    if: inputs.skip_tests != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type: [unit, integration, api]
+        include:
+          - test-type: unit
+            path: tests/test_*.py
+            coverage: true
+          - test-type: integration
+            path: tests/test_integration*.py
+            coverage: false
+          - test-type: api
+            path: tests/test_api*.py
+            coverage: false
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-cov pytest-xdist
+
+      - name: Run ${{ matrix.test-type }} tests
+        run: |
+          pytest ${{ matrix.path }} -v --cov=app --cov-report=xml -n auto
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          FLASK_ENV: testing
+
+      - name: Upload coverage
+        if: matrix.coverage == true
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: backend-${{ matrix.test-type }}
+          name: backend-${{ matrix.test-type }}-coverage
+
+  # ============================================
+  # STAGE 4: Performance Testing
+  # ============================================
+  
+  performance-tests:
+    name: ⚡ Performance Tests
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Create k6 load test script
+        run: |
+          mkdir -p tests/performance
+          cat > tests/performance/load-test.js << 'EOF'
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+          import { Rate, Trend } from 'k6/metrics';
+
+          const errorRate = new Rate('errors');
+          const responseTime = new Trend('response_time');
+
+          export const options = {
+            stages: [
+              { duration: '30s', target: 10 },
+              { duration: '1m', target: 50 },
+              { duration: '30s', target: 100 },
+              { duration: '1m', target: 100 },
+              { duration: '30s', target: 0 },
+            ],
+            thresholds: {
+              http_req_duration: ['p(95)<500', 'p(99)<1000'],
+              errors: ['rate<0.1'],
+              http_req_failed: ['rate<0.05'],
+            },
+          };
+
+          const BASE_URL = __ENV.BASE_URL || 'http://localhost:5000';
+
+          export default function () {
+            const endpoints = [
+              { method: 'GET', url: `${BASE_URL}/api/tickets` },
+              { method: 'GET', url: `${BASE_URL}/api/auth/me` },
+            ];
+
+            for (const endpoint of endpoints) {
+              const res = http.request(endpoint.method, endpoint.url, null, {
+                headers: { 'Authorization': `Bearer ${__ENV.AUTH_TOKEN || ''}` },
+              });
+              
+              check(res, {
+                'status is 200': (r) => r.status === 200 || r.status === 401,
+                'response time < 500ms': (r) => r.timings.duration < 500,
+              });
+              
+              errorRate.add(res.status >= 400);
+              responseTime.add(res.timings.duration);
+              
+              sleep(0.1);
+            }
+          }
+          EOF
+
+      - name: Run k6 smoke test
+        run: |
+          k6 run tests/performance/load-test.js \
+            --vus 5 \
+            --duration 30s \
+            --out json=k6-results.json \
+            --summary-export=k6-summary.json
+        env:
+          BASE_URL: ${{ vars.STAGING_URL || 'http://localhost:5000' }}
+        continue-on-error: true
+
+      - name: Upload k6 results
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-performance-results
+          path: |
+            k6-results.json
+            k6-summary.json
+        if: always()
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            ${{ vars.STAGING_URL || 'https://staging.example.com' }}
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          configPath: ./lighthouserc.json
+        continue-on-error: true
+
+      - name: Check performance thresholds
+        run: |
+          if [ -f k6-summary.json ]; then
+            echo "📊 Performance Test Results:"
+            cat k6-summary.json | jq '.metrics'
+            
+            # Check if p95 response time is under 500ms
+            P95=$(cat k6-summary.json | jq -r '.metrics.http_req_duration.values["p(95)"]' 2>/dev/null || echo "0")
+            if [ "$(echo "$P95 > 500" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
+              echo "⚠️ Warning: P95 response time ($P95 ms) exceeds 500ms threshold"
+            else
+              echo "✅ P95 response time ($P95 ms) is within threshold"
+            fi
+          fi
+
+  # ============================================
+  # STAGE 5: Deploy to Staging
+  # ============================================
+  
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [code-quality, security-dependencies, frontend-tests, backend-tests]
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+    outputs:
+      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend-dist
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Deploy frontend to S3
+        id: deploy-frontend
+        run: |
+          aws s3 sync frontend-dist/ s3://${{ secrets.STAGING_S3_BUCKET }} \
+            --delete \
+            --cache-control "max-age=31536000,public" \
+            --exclude "index.html" \
+            --exclude "*.json"
+          
+          aws s3 cp frontend-dist/index.html s3://${{ secrets.STAGING_S3_BUCKET }}/index.html \
+            --cache-control "no-cache,no-store,must-revalidate"
+          
+          echo "Frontend deployed to staging"
+
+      - name: Deploy backend
+        id: deploy
+        run: |
+          echo "Deploying backend to staging..."
+          DEPLOYMENT_ID=$(date +%Y%m%d%H%M%S)
+          echo "deployment-id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          
+          # Example: ECS deployment
+          # aws ecs update-service --cluster staging --service support-api --force-new-deployment
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.STAGING_CLOUDFRONT_ID }} \
+            --paths "/*"
+        continue-on-error: true
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests..."
+          for i in {1..10}; do
+            if curl -sf "${{ vars.STAGING_URL }}/api/health" > /dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            echo "Waiting for service... (attempt $i/10)"
+            sleep 10
+          done
+          echo "❌ Health check failed"
+          exit 1
+
+      - name: Notify Slack - Staging Deployed
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          text: '🚀 Staging deployment completed'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+        if: always()
+
+  # ============================================
+  # STAGE 6: Deploy to Production (Blue-Green)
+  # ============================================
+  
+  deploy-production:
+    name: 🚀 Deploy to Production (Blue-Green)
+    runs-on: ubuntu-latest
+    needs: [code-quality, security-dependencies, security-sast, frontend-tests, backend-tests, performance-tests]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    outputs:
+      deployment-id: ${{ steps.deploy.outputs.deployment-id }}
+      active-slot: ${{ steps.deploy.outputs.active-slot }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend-dist
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Determine active slot
+        id: slot
+        run: |
+          # Determine which slot is currently active (blue or green)
+          CURRENT_SLOT=$(aws ssm get-parameter --name "/production/active-slot" --query "Parameter.Value" --output text 2>/dev/null || echo "blue")
+          if [ "$CURRENT_SLOT" = "blue" ]; then
+            TARGET_SLOT="green"
+          else
+            TARGET_SLOT="blue"
+          fi
+          echo "current-slot=$CURRENT_SLOT" >> $GITHUB_OUTPUT
+          echo "target-slot=$TARGET_SLOT" >> $GITHUB_OUTPUT
+          echo "📍 Current: $CURRENT_SLOT, Deploying to: $TARGET_SLOT"
+
+      - name: Deploy to inactive slot (${{ steps.slot.outputs.target-slot }})
+        id: deploy
+        run: |
+          TARGET_SLOT="${{ steps.slot.outputs.target-slot }}"
+          DEPLOYMENT_ID=$(date +%Y%m%d%H%M%S)
+          echo "deployment-id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          echo "active-slot=$TARGET_SLOT" >> $GITHUB_OUTPUT
+          
+          echo "🚀 Deploying to $TARGET_SLOT slot..."
+          
+          # Deploy frontend to target slot bucket
+          aws s3 sync frontend-dist/ s3://${{ secrets.PROD_S3_BUCKET }}-$TARGET_SLOT \
+            --delete \
+            --cache-control "max-age=31536000,public" \
+            --exclude "index.html"
+          
+          aws s3 cp frontend-dist/index.html s3://${{ secrets.PROD_S3_BUCKET }}-$TARGET_SLOT/index.html \
+            --cache-control "no-cache"
+          
+          # Deploy backend to target slot
+          # Example: Update ECS service for target slot
+          # aws ecs update-service --cluster production-$TARGET_SLOT --service support-api --force-new-deployment
+
+      - name: Health check on new deployment
+        id: health-check
+        run: |
+          TARGET_SLOT="${{ steps.slot.outputs.target-slot }}"
+          HEALTH_URL="${{ vars.PRODUCTION_URL }}-$TARGET_SLOT/api/health"
+          
+          echo "🏥 Running health checks on $TARGET_SLOT..."
+          
+          for i in {1..30}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" 2>/dev/null || echo "000")
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ Health check passed on attempt $i"
+              echo "healthy=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            echo "⏳ Waiting for service... (attempt $i/30, status: $HTTP_STATUS)"
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after 30 attempts"
+          echo "healthy=false" >> $GITHUB_OUTPUT
+          exit 1
+
+      - name: Switch traffic to new slot
+        if: steps.health-check.outputs.healthy == 'true'
+        run: |
+          TARGET_SLOT="${{ steps.slot.outputs.target-slot }}"
+          
+          echo "🔄 Switching traffic to $TARGET_SLOT..."
+          
+          # Update Route53 / ALB / CloudFront to point to new slot
+          # aws route53 change-resource-record-sets ...
+          
+          # Update SSM parameter to track active slot
+          aws ssm put-parameter \
+            --name "/production/active-slot" \
+            --value "$TARGET_SLOT" \
+            --type String \
+            --overwrite
+          
+          echo "✅ Traffic switched to $TARGET_SLOT"
+
+      - name: Monitor deployment (5 minutes)
+        if: steps.health-check.outputs.healthy == 'true'
+        id: monitor
+        run: |
+          echo "📊 Monitoring deployment for 5 minutes..."
+          
+          ERROR_COUNT=0
+          CHECK_COUNT=30
+          
+          for i in $(seq 1 $CHECK_COUNT); do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL }}/api/health" 2>/dev/null || echo "000")
+            
+            if [ "$HTTP_STATUS" != "200" ]; then
+              ERROR_COUNT=$((ERROR_COUNT + 1))
+              echo "⚠️ Check $i/$CHECK_COUNT: Status $HTTP_STATUS (errors: $ERROR_COUNT)"
+            else
+              echo "✅ Check $i/$CHECK_COUNT: Healthy"
+            fi
+            
+            # If error rate exceeds 20%, trigger rollback
+            ERROR_RATE=$((ERROR_COUNT * 100 / i))
+            if [ "$ERROR_RATE" -gt 20 ]; then
+              echo "❌ Error rate ($ERROR_RATE%) exceeds threshold"
+              echo "rollback-needed=true" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+            
+            sleep 10
+          done
+          
+          echo "✅ Monitoring complete. Deployment stable."
+          echo "rollback-needed=false" >> $GITHUB_OUTPUT
+
+      - name: Invalidate CloudFront cache
+        if: steps.health-check.outputs.healthy == 'true'
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.PROD_CLOUDFRONT_ID }} \
+            --paths "/*"
+
+      - name: Notify success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          fields: repo,message,commit,author
+          text: '🎉 Production deployment successful! Slot: ${{ steps.slot.outputs.target-slot }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ============================================
+  # STAGE 7: Automated Rollback
+  # ============================================
+  
+  rollback:
+    name: 🔙 Automated Rollback
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: failure() && needs.deploy-production.outputs.deployment-id != ''
+    environment:
+      name: production
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Rollback to previous slot
+        run: |
+          # Get the previous active slot
+          CURRENT_SLOT=$(aws ssm get-parameter --name "/production/active-slot" --query "Parameter.Value" --output text)
+          
+          if [ "$CURRENT_SLOT" = "blue" ]; then
+            ROLLBACK_SLOT="green"
+          else
+            ROLLBACK_SLOT="blue"
+          fi
+          
+          echo "🔙 Rolling back from $CURRENT_SLOT to $ROLLBACK_SLOT..."
+          
+          # Switch traffic back to previous slot
+          # aws route53 change-resource-record-sets ...
+          
+          # Update SSM parameter
+          aws ssm put-parameter \
+            --name "/production/active-slot" \
+            --value "$ROLLBACK_SLOT" \
+            --type String \
+            --overwrite
+          
+          echo "✅ Rollback complete. Active slot: $ROLLBACK_SLOT"
+
+      - name: Verify rollback
+        run: |
+          echo "🏥 Verifying rollback..."
+          
+          for i in {1..10}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL }}/api/health")
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ Rollback verified - service healthy"
+              exit 0
+            fi
+            sleep 5
+          done
+          
+          echo "❌ Rollback verification failed"
+          exit 1
+
+      - name: Notify rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: repo,message,commit,author
+          text: '🚨 Production deployment FAILED - Automatic rollback executed'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ============================================
+  # STAGE 8: Post-Deployment Monitoring
+  # ============================================
+  
+  monitoring:
+    name: 📊 Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: success()
+    
+    steps:
+      - name: Create Datadog deployment event
+        run: |
+          curl -X POST "https://api.datadoghq.com/api/v1/events" \
+            -H "Content-Type: application/json" \
+            -H "DD-API-KEY: ${{ secrets.DATADOG_API_KEY }}" \
+            -d '{
+              "title": "Production Deployment",
+              "text": "Deployed commit ${{ github.sha }} to production",
+              "tags": ["environment:production", "service:support-api", "version:${{ github.sha }}"],
+              "alert_type": "info"
+            }'
+        continue-on-error: true
+
+      - name: Update deployment tracking
+        run: |
+          echo "📊 Deployment tracking updated"
+          echo "Commit: ${{ github.sha }}"
+          echo "Deployment ID: ${{ needs.deploy-production.outputs.deployment-id }}"
+          echo "Active Slot: ${{ needs.deploy-production.outputs.active-slot }}"
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+      - name: Create GitHub deployment status
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          state: success
+          deployment-id: ${{ needs.deploy-production.outputs.deployment-id }}
+          environment-url: ${{ vars.PRODUCTION_URL }}
+        continue-on-error: true

@@ -1,0 +1,303 @@
+{
+  "version": "1.0.0",
+  "description": "Performance thresholds for Support Ticket API",
+  "lastUpdated": "2024-01-01T00:00:00Z",
+  
+  "api": {
+    "responseTime": {
+      "description": "API endpoint response time thresholds in milliseconds",
+      "thresholds": {
+        "p50": 100,
+        "p75": 150,
+        "p90": 250,
+        "p95": 500,
+        "p99": 1000,
+        "max": 2000
+      },
+      "endpoints": {
+        "GET /api/health": {
+          "p95": 50,
+          "p99": 100
+        },
+        "POST /api/auth/login": {
+          "p95": 300,
+          "p99": 500
+        },
+        "POST /api/auth/register": {
+          "p95": 400,
+          "p99": 600
+        },
+        "GET /api/tickets": {
+          "p95": 200,
+          "p99": 400
+        },
+        "POST /api/tickets": {
+          "p95": 300,
+          "p99": 500
+        },
+        "GET /api/tickets/:id": {
+          "p95": 100,
+          "p99": 200
+        },
+        "PUT /api/tickets/:id": {
+          "p95": 200,
+          "p99": 400
+        },
+        "DELETE /api/tickets/:id": {
+          "p95": 150,
+          "p99": 300
+        }
+      }
+    },
+    "throughput": {
+      "description": "Minimum requests per second the API should handle",
+      "thresholds": {
+        "minimum": 50,
+        "target": 100,
+        "peak": 200
+      }
+    },
+    "errorRate": {
+      "description": "Maximum acceptable error rates",
+      "thresholds": {
+        "warning": 0.01,
+        "critical": 0.05
+      }
+    },
+    "concurrency": {
+      "description": "Concurrent user thresholds",
+      "thresholds": {
+        "baseline": 50,
+        "target": 100,
+        "peak": 200,
+        "stress": 500
+      }
+    }
+  },
+  
+  "frontend": {
+    "lighthouse": {
+      "description": "Lighthouse score thresholds (0-100)",
+      "thresholds": {
+        "performance": {
+          "minimum": 70,
+          "target": 85,
+          "excellent": 95
+        },
+        "accessibility": {
+          "minimum": 85,
+          "target": 95,
+          "excellent": 100
+        },
+        "bestPractices": {
+          "minimum": 80,
+          "target": 90,
+          "excellent": 100
+        },
+        "seo": {
+          "minimum": 85,
+          "target": 95,
+          "excellent": 100
+        }
+      }
+    },
+    "coreWebVitals": {
+      "description": "Core Web Vitals thresholds",
+      "thresholds": {
+        "LCP": {
+          "description": "Largest Contentful Paint",
+          "good": 2500,
+          "needsImprovement": 4000,
+          "unit": "ms"
+        },
+        "FID": {
+          "description": "First Input Delay",
+          "good": 100,
+          "needsImprovement": 300,
+          "unit": "ms"
+        },
+        "CLS": {
+          "description": "Cumulative Layout Shift",
+          "good": 0.1,
+          "needsImprovement": 0.25,
+          "unit": "score"
+        },
+        "FCP": {
+          "description": "First Contentful Paint",
+          "good": 1800,
+          "needsImprovement": 3000,
+          "unit": "ms"
+        },
+        "TTFB": {
+          "description": "Time to First Byte",
+          "good": 800,
+          "needsImprovement": 1800,
+          "unit": "ms"
+        },
+        "TTI": {
+          "description": "Time to Interactive",
+          "good": 3800,
+          "needsImprovement": 7300,
+          "unit": "ms"
+        },
+        "TBT": {
+          "description": "Total Blocking Time",
+          "good": 200,
+          "needsImprovement": 600,
+          "unit": "ms"
+        },
+        "SI": {
+          "description": "Speed Index",
+          "good": 3400,
+          "needsImprovement": 5800,
+          "unit": "ms"
+        }
+      }
+    },
+    "resourceBudgets": {
+      "description": "Resource size budgets",
+      "thresholds": {
+        "javascript": {
+          "warning": 300,
+          "critical": 500,
+          "unit": "KB"
+        },
+        "css": {
+          "warning": 100,
+          "critical": 200,
+          "unit": "KB"
+        },
+        "images": {
+          "warning": 500,
+          "critical": 1000,
+          "unit": "KB"
+        },
+        "fonts": {
+          "warning": 100,
+          "critical": 200,
+          "unit": "KB"
+        },
+        "total": {
+          "warning": 1500,
+          "critical": 3000,
+          "unit": "KB"
+        }
+      }
+    }
+  },
+  
+  "database": {
+    "queryTime": {
+      "description": "Database query time thresholds",
+      "thresholds": {
+        "simple": {
+          "p95": 10,
+          "p99": 50,
+          "unit": "ms"
+        },
+        "complex": {
+          "p95": 100,
+          "p99": 500,
+          "unit": "ms"
+        },
+        "report": {
+          "p95": 1000,
+          "p99": 5000,
+          "unit": "ms"
+        }
+      }
+    },
+    "connectionPool": {
+      "description": "Connection pool thresholds",
+      "thresholds": {
+        "maxConnections": 100,
+        "warningUtilization": 0.7,
+        "criticalUtilization": 0.9
+      }
+    }
+  },
+  
+  "loadTest": {
+    "scenarios": {
+      "smoke": {
+        "description": "Quick sanity check",
+        "vus": 5,
+        "duration": "1m",
+        "thresholds": {
+          "http_req_duration": ["p(95)<500"],
+          "http_req_failed": ["rate<0.01"]
+        }
+      },
+      "load": {
+        "description": "Normal load testing",
+        "vus": 50,
+        "duration": "10m",
+        "thresholds": {
+          "http_req_duration": ["p(95)<500", "p(99)<1000"],
+          "http_req_failed": ["rate<0.01"]
+        }
+      },
+      "stress": {
+        "description": "Find breaking point",
+        "vus": 200,
+        "duration": "15m",
+        "thresholds": {
+          "http_req_duration": ["p(95)<1000"],
+          "http_req_failed": ["rate<0.05"]
+        }
+      },
+      "spike": {
+        "description": "Sudden traffic spike",
+        "stages": [
+          { "duration": "1m", "target": 10 },
+          { "duration": "30s", "target": 200 },
+          { "duration": "1m", "target": 200 },
+          { "duration": "30s", "target": 10 }
+        ],
+        "thresholds": {
+          "http_req_duration": ["p(95)<2000"],
+          "http_req_failed": ["rate<0.1"]
+        }
+      },
+      "soak": {
+        "description": "Extended duration test",
+        "vus": 50,
+        "duration": "2h",
+        "thresholds": {
+          "http_req_duration": ["p(95)<500"],
+          "http_req_failed": ["rate<0.01"]
+        }
+      }
+    }
+  },
+  
+  "alerts": {
+    "channels": ["slack", "email", "pagerduty"],
+    "rules": [
+      {
+        "name": "High Response Time",
+        "condition": "p95_response_time > 500",
+        "severity": "warning",
+        "cooldown": "5m"
+      },
+      {
+        "name": "Critical Response Time",
+        "condition": "p95_response_time > 1000",
+        "severity": "critical",
+        "cooldown": "1m"
+      },
+      {
+        "name": "High Error Rate",
+        "condition": "error_rate > 0.01",
+        "severity": "warning",
+        "cooldown": "5m"
+      },
+      {
+        "name": "Critical Error Rate",
+        "condition": "error_rate > 0.05",
+        "severity": "critical",
+        "cooldown": "1m"
+      }
+    ]
+  }
+}

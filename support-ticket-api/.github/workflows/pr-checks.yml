@@ -1,0 +1,124 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ============================================
+  # Code Quality Checks
+  # ============================================
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Python linters
+        run: |
+          pip install flake8 black isort
+
+      - name: Check Python formatting with Black
+        run: |
+          black --check --diff app/
+
+      - name: Check Python imports with isort
+        run: |
+          isort --check-only --diff app/
+
+      - name: Run Flake8
+        run: |
+          flake8 app/ --count --max-line-length=127 --statistics
+
+      - name: Install frontend dependencies
+        run: |
+          cd ../react-app
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd ../react-app
+          npm run lint --if-present
+
+      - name: Check TypeScript types
+        run: |
+          cd ../react-app
+          npm run type-check --if-present
+
+  # ============================================
+  # Security Scanning
+  # ============================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install safety
+        run: pip install safety bandit
+
+      - name: Check Python dependencies for vulnerabilities
+        run: |
+          pip install -r requirements.txt
+          safety check --full-report
+        continue-on-error: true
+
+      - name: Run Bandit security linter
+        run: |
+          bandit -r app/ -ll
+        continue-on-error: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Audit npm dependencies
+        run: |
+          cd ../react-app
+          npm audit --audit-level=high
+        continue-on-error: true
+
+  # ============================================
+  # PR Size Check
+  # ============================================
+  pr-size:
+    name: PR Size Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size
+        run: |
+          ADDITIONS=$(git diff --numstat origin/${{ github.base_ref }}...HEAD | awk '{sum+=$1} END {print sum}')
+          DELETIONS=$(git diff --numstat origin/${{ github.base_ref }}...HEAD | awk '{sum+=$2} END {print sum}')
+          TOTAL=$((ADDITIONS + DELETIONS))
+          
+          echo "PR Size: +$ADDITIONS / -$DELETIONS (Total: $TOTAL lines)"
+          
+          if [ "$TOTAL" -gt 1000 ]; then
+            echo "⚠️ Warning: Large PR detected ($TOTAL lines). Consider breaking into smaller PRs."
+          fi

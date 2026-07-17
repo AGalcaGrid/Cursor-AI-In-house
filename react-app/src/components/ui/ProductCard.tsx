@@ -30,12 +30,12 @@ function StarRating({ rating, reviewCount }: { rating: number; reviewCount: numb
           </svg>
         )}
         {[...Array(emptyStars)].map((_, i) => (
-          <svg key={`empty-${i}`} className="w-4 h-4 text-gray-300 fill-current" viewBox="0 0 20 20">
+          <svg key={`empty-${i}`} className="w-4 h-4 text-gray-300 dark:text-gray-600 fill-current" viewBox="0 0 20 20">
             <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
           </svg>
         ))}
       </div>
-      <span className="text-sm text-gray-500">({reviewCount})</span>
+      <span className="text-sm text-gray-500 dark:text-gray-400">({reviewCount})</span>
     </div>
   );
 }
@@ -54,9 +54,9 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
   return (
     <article
-      className="group relative flex flex-col bg-white rounded-2xl shadow-md overflow-hidden
+      className="group relative flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden
                  transition-all duration-300 ease-out
-                 hover:shadow-xl hover:-translate-y-1"
+                 hover:shadow-xl hover:-translate-y-1 border border-gray-200 dark:border-gray-700"
       aria-label={`Product: ${product.title}`}
     >
       {/* Discount Badge */}
@@ -71,15 +71,15 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
       {/* Out of Stock Overlay */}
       {!product.inStock && (
-        <div className="absolute inset-0 z-20 bg-white/80 flex items-center justify-center">
-          <span className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg">
+        <div className="absolute inset-0 z-20 bg-white/80 dark:bg-gray-900/80 flex items-center justify-center">
+          <span className="px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white text-sm font-medium rounded-lg">
             Out of Stock
           </span>
         </div>
       )}
 
       {/* Product Image */}
-      <div className="relative aspect-square overflow-hidden bg-gray-100">
+      <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-700">
         <img
           src={product.image}
           alt={product.title}
@@ -93,18 +93,18 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       <div className="flex flex-col flex-1 p-4">
         {/* Category */}
         {product.category && (
-          <span className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">
+          <span className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-1">
             {product.category}
           </span>
         )}
 
         {/* Title */}
-        <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 mb-1">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1">
           {product.title}
         </h3>
 
         {/* Description */}
-        <p className="text-sm text-gray-500 line-clamp-2 mb-3 flex-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-3 flex-1">
           {product.description}
         </p>
 
@@ -115,11 +115,11 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
         {/* Price */}
         <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-xl font-bold text-gray-900">
+          <span className="text-xl font-bold text-gray-900 dark:text-white">
             {formatPrice(product.price)}
           </span>
           {product.originalPrice && (
-            <span className="text-sm text-gray-400 line-through">
+            <span className="text-sm text-gray-400 dark:text-gray-500 line-through">
               {formatPrice(product.originalPrice)}
             </span>
           )}
@@ -129,12 +129,12 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         <button
           onClick={() => onAddToCart?.(product)}
           disabled={!product.inStock}
-          className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-xl
+          className="w-full py-3 px-4 bg-blue-600 dark:bg-blue-500 text-white font-medium rounded-xl
                      transition-all duration-200 ease-out
-                     hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                     hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/25
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800
                      active:scale-[0.98]
-                     disabled:bg-gray-300 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                     disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed disabled:hover:shadow-none"
           aria-label={`Add ${product.title} to cart`}
         >
           <span className="flex items-center justify-center gap-2">
